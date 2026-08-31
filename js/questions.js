@@ -75,7 +75,7 @@ window.Questions = (function () {
   var lastOtdbRequest = 0;
   var otdbToken = null;
   var otdbFailures = 0;
-  var status = { source: 'offline bank', live: false };
+  var status = { source: 'offline bank', live: false, note: 'still loading' };
   var preferredCategories = [];  // display names to bias towards
 
   /* ---------------- helpers ---------------- */
@@ -187,6 +187,11 @@ window.Questions = (function () {
     return fetch(url, { cache: 'no-store' }).then(function (r) {
       if (!r.ok) throw new Error('HTTP ' + r.status);
       return r.json();
+    }).catch(function (err) {
+      // A blocked or cross-origin-refused request throws a bare TypeError,
+      // which tells the player nothing. Name it.
+      if (err instanceof TypeError) throw new Error('blocked or offline');
+      throw err;
     });
   }
 
@@ -287,17 +292,27 @@ window.Questions = (function () {
     return raw.replace(/_/g, ' ').replace(/\b\w/g, function (m) { return m.toUpperCase(); });
   }
 
-  function fetchFromTriviaApi(difficulty) {
-    // region=GB filters out questions unsuitable for a British audience.
-    var url = 'https://the-trivia-api.com/v2/questions?limit=20&region=GB&difficulties=' + difficulty;
+  /*
+   * `plain` drops the region and category filters. If the API ever rejects
+   * or renames those parameters, a plain request still gets UK-leaning
+   * questions from a British database — far better than falling all the way
+   * back to the American one over a query string.
+   */
+  function fetchFromTriviaApi(difficulty, plain) {
+    var url = 'https://the-trivia-api.com/v2/questions?limit=20&difficulties=' + difficulty;
 
-    // As with OTDB, target a weak category only some of the time so the
-    // spread stays broad.
-    if (preferredCategories.length && Math.random() < 0.4) {
-      var slugs = preferredCategories
-        .map(function (name) { return TRIVIA_API_SLUGS[name]; })
-        .filter(Boolean);
-      if (slugs.length) url += '&categories=' + pick(slugs);
+    if (!plain) {
+      // region=GB holds back questions unsuitable for a British audience.
+      url += '&region=GB';
+
+      // As with OTDB, target a weak category only some of the time so the
+      // spread stays broad.
+      if (preferredCategories.length && Math.random() < 0.4) {
+        var slugs = preferredCategories
+          .map(function (name) { return TRIVIA_API_SLUGS[name]; })
+          .filter(Boolean);
+        if (slugs.length) url += '&categories=' + pick(slugs);
+      }
     }
 
     return fetchJson(url).then(function (list) {
@@ -338,23 +353,42 @@ window.Questions = (function () {
 
     return fetchFromTriviaApi(difficulty)
       .then(function (list) {
-        if (!list.length) throw new Error('empty');
-        status = { source: 'The Trivia API (UK)', live: true };
+        if (!list.length) throw new Error('no questions returned');
+        status = { source: 'The Trivia API (UK)', live: true, note: '' };
         return addToPool(difficulty, list);
       })
-      .catch(function () {
-        // Fall back to OTDB, unless it has already failed repeatedly.
-        if (otdbFailures >= 3) throw new Error('OTDB skipped');
-        return fetchFromOtdb(difficulty).then(function (list) {
-          if (!list.length) throw new Error('empty');
-          otdbFailures = 0;
-          status = { source: 'Open Trivia DB', live: true };
+      .catch(function (err) {
+        // Retry without the region/category filters before giving up on the
+        // British source — a rejected parameter should not cost us the UK.
+        return fetchFromTriviaApi(difficulty, true).then(function (list) {
+          if (!list.length) throw new Error('no questions returned');
+          status = {
+            source: 'The Trivia API',
+            live: true,
+            note: 'UK filter unavailable (' + err.message + ')'
+          };
           return addToPool(difficulty, list);
         });
       })
-      .catch(function () {
+      .catch(function (err) {
+        // Fall back to OTDB, unless it has already failed repeatedly.
+        if (otdbFailures >= 3) throw err;
+        return fetchFromOtdb(difficulty).then(function (list) {
+          if (!list.length) throw new Error('no questions returned');
+          otdbFailures = 0;
+          status = {
+            source: 'Open Trivia DB',
+            live: true,
+            note: 'UK source unreachable (' + err.message + ')'
+          };
+          return addToPool(difficulty, list);
+        });
+      })
+      .catch(function (err) {
         otdbFailures++;
-        if (!status.live) status = { source: 'offline bank', live: false };
+        if (!status.live) {
+          status = { source: 'offline bank', live: false, note: err.message };
+        }
         return 0;
       })
       .then(function (n) {

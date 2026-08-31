@@ -14,6 +14,10 @@
   var SAFETY_NETS = [5, 10];        // levels that bank the money
   var QUESTION_SECONDS = 45;
 
+  /* Shown on the home screen. Bump alongside the service worker cache so it
+     is obvious at a glance which version a device is actually running. */
+  var APP_BUILD = 5;
+
   var state = null;
   var settings = Stats.readSettings();
 
@@ -677,6 +681,44 @@
     });
   }
 
+  /* ---------------- question source readout ---------------- */
+
+  /*
+   * Reports which source the questions are actually coming from, and why if
+   * it is not the intended one. It keeps checking rather than reading once,
+   * because the first fetch can land after the home screen has drawn.
+   */
+  function watchSource() {
+    var el = $('source-note');
+    var checks = 0;
+
+    function render() {
+      var s = Questions.getStatus();
+      var text;
+      if (s.live && s.source.indexOf('UK') !== -1) {
+        text = 'Questions: ' + s.source + '.';
+      } else if (s.live) {
+        text = 'Questions: ' + s.source + (s.note ? ' — ' + s.note : '') + '.';
+      } else if (checks < 6) {
+        text = 'Loading questions…';
+      } else {
+        text = 'Offline bank in use' + (s.note ? ' — ' + s.note : '') +
+               '. The game still works; live questions resume when the connection does.';
+      }
+      el.textContent = text;
+      el.classList.toggle('source-warn', checks >= 6 && (!s.live || !!s.note));
+    }
+
+    render();
+    var id = setInterval(function () {
+      checks++;
+      render();
+      // Stop once settled on the intended source, or after ~30 seconds.
+      var s = Questions.getStatus();
+      if ((s.live && !s.note) || checks > 30) clearInterval(id);
+    }, 1000);
+  }
+
   /* ---------------- wiring ---------------- */
 
   function init() {
@@ -747,13 +789,10 @@
       if (e.key === 'Enter') lockIn();
     });
 
+    $('build-stamp').textContent = 'build ' + APP_BUILD;
+
     Questions.prefetch();
-    setTimeout(function () {
-      var s = Questions.getStatus();
-      $('source-note').textContent = s.live
-        ? 'Questions loading live from ' + s.source + '.'
-        : 'Using the offline question bank — live questions will be used as soon as they load.';
-    }, 3000);
+    watchSource();
   }
 
   document.addEventListener('DOMContentLoaded', init);
