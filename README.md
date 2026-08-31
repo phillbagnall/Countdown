@@ -47,6 +47,13 @@ python3 -m http.server 8000
   reveal gets longer as the money climbs, as it does on the show.
 - **Walk away** — available at any point, and banks the amount for the last
   question answered correctly.
+- **Keep playing after a wrong answer** (optional, off by default) — the
+  questions carry on to Q15 so a session is always a full fifteen, but the
+  run is still scored where it ended. The money, the recorded level and the
+  best-level stat all come from the first wrong answer, so results stay
+  comparable with a straight game; the result screen adds how many were
+  answered correctly overall, and missed rungs are struck through on the
+  ladder.
 - **Difficulty** — questions 1–6 are easy, 7–11 medium, 12–15 hard. The show
   stays gentle for a good while, so the hard tier only starts where the real
   money does.
@@ -58,6 +65,7 @@ python3 -m http.server 8000
 | **50:50** | Removes two wrong answers. |
 | **Ask the Audience** | Simulated vote. The crowd is reliable on easy questions and much less so on hard ones, and only votes on answers still on the board. |
 | **Phone a Friend** | 30-second timer. The friend is right about 90% of the time on easy questions, 70% on medium, 45% on hard — and the confidence wording tells you roughly how much to trust it. |
+| **Ask the Host** | The host answers off the cuff: right about 85% of the time on easy, 60% on medium, 40% on hard. He says how sure he is, and he is sometimes confident and wrong — reading that is the point. |
 
 ### Keyboard
 
@@ -112,6 +120,7 @@ real show can ask about anything.
 | Setting | Default | Effect |
 |---|---|---|
 | Target my weakest categories | on | Biases question selection towards weak subjects |
+| Keep playing after a wrong answer | off | Carries on to Q15 for practice; the result is still scored at the first mistake |
 | Question timer (45s) | off | Adds a countdown; running out counts as a wrong answer |
 | Sound | on | Short synthesised cues for select, lock-in, correct and wrong |
 

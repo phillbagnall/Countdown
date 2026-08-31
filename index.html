@@ -35,6 +35,10 @@
           <span>Target my weakest categories</span>
         </label>
         <label class="setting">
+          <input type="checkbox" id="opt-practice">
+          <span>Keep playing after a wrong answer</span>
+        </label>
+        <label class="setting">
           <input type="checkbox" id="opt-timer">
           <span>Question timer (45s)</span>
         </label>
@@ -63,6 +67,9 @@
             </button>
             <button class="lifeline" id="ll-phone" title="Phone a Friend">
               <span class="ll-mark">&#128222;</span>
+            </button>
+            <button class="lifeline" id="ll-host" title="Ask the Host">
+              <span class="ll-mark">&#127908;</span>
             </button>
           </div>
           <div class="header-right">
@@ -124,6 +131,7 @@
       <h2 id="result-title">Game over</h2>
       <p class="result-money" id="result-money">&pound;0</p>
       <p id="result-detail"></p>
+      <p id="result-practice" class="result-practice" hidden></p>
       <div id="result-review" class="review"></div>
       <div class="panel-actions">
         <button class="btn btn-primary" id="btn-again">Play again</button>

@@ -83,7 +83,8 @@
     $$('#ladder .rung').forEach(function (li) {
       var n = Number(li.dataset.level);
       li.classList.toggle('current', n === level);
-      li.classList.toggle('won', n < level);
+      li.classList.toggle('won', n < level && state.wrongLevels.indexOf(n) === -1);
+      li.classList.toggle('missed', state.wrongLevels.indexOf(n) !== -1);
     });
     var current = document.querySelector('#ladder .rung.current');
     if (current && current.scrollIntoView) {
@@ -123,11 +124,17 @@
       selected: null,
       locked: false,
       removed: [],
-      lifelines: { fifty: true, audience: true, phone: true },
+      lifelines: { fifty: true, audience: true, phone: true, host: true },
       askedAt: 0,
       timerId: null,
       secondsLeft: QUESTION_SECONDS,
-      review: []
+      review: [],
+      practice: settings.practice,
+      // The level of the first wrong answer. In practice mode the game
+      // carries on past it, but this is where the run officially ended, so
+      // it is what the money and the stats are based on.
+      firstWrongLevel: null,
+      wrongLevels: []
     };
 
     $$('.lifeline').forEach(function (b) { b.classList.remove('used'); b.disabled = false; });
@@ -223,7 +230,25 @@
     });
     $$('.answer')[q.correctIndex].classList.add('correct');
     soundWrong();
-    delay(2000).then(function () { endGame('lost'); });
+    delay(2000).then(function () { afterWrongAnswer(); });
+  }
+
+  /*
+   * A wrong answer ends the run. In practice mode the questions keep coming
+   * so she gets a full fifteen every session, but the run is still over for
+   * scoring: the money and the recorded level come from where it ended.
+   */
+  function afterWrongAnswer() {
+    if (state.firstWrongLevel === null) state.firstWrongLevel = state.level;
+    if (state.wrongLevels.indexOf(state.level) === -1) {
+      state.wrongLevels.push(state.level);
+    }
+
+    if (!state.practice) return endGame('lost');
+
+    if (state.level === LADDER.length) return endGame('lost');
+    state.level++;
+    loadQuestion();
   }
 
   function lockIn() {
@@ -261,7 +286,7 @@
         soundCorrect();
         return delay(1400).then(function () {
           if (state.level === LADDER.length) {
-            endGame('won');
+            endGame(state.firstWrongLevel === null ? 'won' : 'lost');
           } else {
             state.level++;
             loadQuestion();
@@ -273,7 +298,7 @@
       $$('.answer')[chosen].classList.add('wrong');
       $$('.answer')[q.correctIndex].classList.add('correct');
       soundWrong();
-      return delay(2600).then(function () { endGame('lost'); });
+      return delay(2600).then(function () { afterWrongAnswer(); });
     });
   }
 
@@ -286,22 +311,35 @@
 
   function endGame(outcome) {
     stopTimer();
-    var answered = state.level - 1;                 // questions answered correctly
+
+    // Where the run ended for scoring. Once a question has been missed, that
+    // is fixed, however many more are answered in practice mode.
+    var missed = state.firstWrongLevel !== null;
+    if (missed && outcome === 'walked') outcome = 'lost';
+
+    var answered;                                   // questions answered correctly
     if (outcome === 'won') answered = LADDER.length;
+    else if (missed) answered = state.firstWrongLevel - 1;
+    else answered = state.level - 1;
 
     var winnings;
     if (outcome === 'won') winnings = LADDER[LADDER.length - 1];
     else if (outcome === 'walked') winnings = walkAwayAmount(answered);
     else winnings = bankedAmount(answered);
 
+    var correctCount = state.review.filter(function (r) { return r.wasCorrect; }).length;
+
     Stats.recordGame({
       winnings: winnings,
       level: answered,
       outcome: outcome,
+      practice: state.practice && missed,
+      answeredCorrect: correctCount,
+      answeredTotal: state.review.length,
       date: Date.now()
     });
 
-    renderResult(outcome, winnings, answered);
+    renderResult(outcome, winnings, answered, correctCount);
     showScreen('screen-result');
   }
 
@@ -444,6 +482,63 @@
     tone(880, 120, 'sine', 0.05);
   }
 
+  /*
+   * Ask the Host. The host answers off the cuff rather than from research,
+   * so he is a bit better than the audience on hard questions and a bit
+   * worse than a well-chosen friend on easy ones — and he says how sure he
+   * is, which is the part worth learning to read.
+   */
+  function askTheHost() {
+    if (!state || !state.lifelines.host || state.locked) return;
+    state.lifelines.host = false;
+    $('ll-host').classList.add('used');
+    $('ll-host').disabled = true;
+
+    var q = state.question;
+    var difficulty = Questions.difficultyForLevel(state.level);
+    var accuracy = difficulty === 'easy' ? 0.85 : difficulty === 'medium' ? 0.6 : 0.4;
+    var right = Math.random() < accuracy;
+
+    var live = [0, 1, 2, 3].filter(function (i) { return state.removed.indexOf(i) === -1; });
+    var answerIndex;
+    if (right) {
+      answerIndex = q.correctIndex;
+    } else {
+      var wrong = live.filter(function (i) { return i !== q.correctIndex; });
+      answerIndex = wrong.length ? wrong[Math.floor(Math.random() * wrong.length)] : q.correctIndex;
+    }
+
+    var sure = [
+      'Now this one I do know. It’s',
+      'I’ll stick my neck out here — it’s',
+      'You’re in luck, this is one of mine. It’s'
+    ];
+    var hedged = [
+      'I think, though I’m really not certain, that it’s',
+      'Something tells me it’s',
+      'My instinct says'
+    ];
+    var lost = [
+      'I’m afraid you’re on your own with this one. If you made me pick, I’d say',
+      'Honestly? No idea. Pure guess:',
+      'I’d be bluffing if I sounded confident, but I’d go'
+    ];
+
+    // Confident wording is more likely when he is actually right, but not a
+    // giveaway — he is sometimes sure and wrong, as on the show.
+    var pool;
+    if (right) pool = Math.random() < 0.65 ? sure : hedged;
+    else pool = Math.random() < 0.45 ? hedged : lost;
+
+    var letters = ['A', 'B', 'C', 'D'];
+    var phrase = pool[Math.floor(Math.random() * pool.length)];
+    openModal('Ask the Host',
+      '<p class="host-line">&ldquo;' + phrase + ' <strong>' + letters[answerIndex] +
+      '</strong> &mdash; ' + escapeHtml(q.answers[answerIndex]) + '.&rdquo;</p>' +
+      '<p class="host-note">It’s your call — he can be wrong.</p>');
+    tone(392, 220, 'triangle', 0.05);
+  }
+
   function escapeHtml(str) {
     var div = document.createElement('div');
     div.textContent = str;
@@ -467,7 +562,9 @@
 
   /* ---------------- result screen ---------------- */
 
-  function renderResult(outcome, winnings, answered) {
+  function renderResult(outcome, winnings, answered, correctCount) {
+    var carriedOn = state.practice && state.firstWrongLevel !== null;
+
     var title = outcome === 'won' ? 'You are a millionaire!'
               : outcome === 'walked' ? 'You walked away'
               : 'That’s the wrong answer';
@@ -481,11 +578,21 @@
       detail = 'Banked after ' + answered + ' correct ' +
                (answered === 1 ? 'answer' : 'answers') + '.';
     } else {
-      detail = 'Out at question ' + (answered + 1) + '. ' +
+      detail = 'Your run ended at question ' + (answered + 1) + '. ' +
                (winnings > 0 ? 'The safety net kept ' + money(winnings) + '.'
                              : 'No safety net reached.');
     }
     $('result-detail').textContent = detail;
+
+    // In practice mode, say what the extra questions were worth on their own.
+    var practiceEl = $('result-practice');
+    if (carriedOn) {
+      practiceEl.hidden = false;
+      practiceEl.textContent = 'You carried on and got ' + correctCount +
+        ' of ' + state.review.length + ' right across the whole ladder.';
+    } else {
+      practiceEl.hidden = true;
+    }
 
     var rows = state.review.map(function (r) {
       var mark = r.wasCorrect ? '<span class="tick">✓</span>' : '<span class="cross">✗</span>';
@@ -542,9 +649,12 @@
         var when = new Date(h.date).toLocaleDateString('en-GB', {
           day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
         });
+        var extra = h.practice && h.answeredTotal
+          ? ' · practice ' + h.answeredCorrect + '/' + h.answeredTotal
+          : '';
         return '<div class="history-row">' +
                  '<span class="hist-money">' + money(h.winnings) + '</span>' +
-                 '<span class="hist-detail">Q' + h.level + ' · ' + h.outcome + '</span>' +
+                 '<span class="hist-detail">Q' + h.level + ' · ' + h.outcome + extra + '</span>' +
                  '<span class="hist-date">' + when + '</span>' +
                '</div>';
       }).join('');
@@ -573,6 +683,7 @@
     buildLadder();
 
     bindSetting('opt-adaptive', 'adaptive');
+    bindSetting('opt-practice', 'practice');
     bindSetting('opt-timer', 'timer');
     bindSetting('opt-sound', 'sound');
 
@@ -597,14 +708,19 @@
     $('btn-final').addEventListener('click', lockIn);
     $('btn-change').addEventListener('click', changeAnswer);
     $('btn-walk').addEventListener('click', function () {
-      if (window.confirm('Walk away with ' + money(walkAwayAmount(state.level - 1)) + '?')) {
-        walkAway();
-      }
+      // After a miss in practice mode the run is already over, so walking
+      // away banks the safety net rather than the current rung.
+      var prompt = state.firstWrongLevel !== null
+        ? 'End this practice run? Your result stands at ' +
+          money(bankedAmount(state.firstWrongLevel - 1)) + '.'
+        : 'Walk away with ' + money(walkAwayAmount(state.level - 1)) + '?';
+      if (window.confirm(prompt)) walkAway();
     });
 
     $('ll-5050').addEventListener('click', useFiftyFifty);
     $('ll-audience').addEventListener('click', askTheAudience);
     $('ll-phone').addEventListener('click', phoneAFriend);
+    $('ll-host').addEventListener('click', askTheHost);
 
     $('modal-close').addEventListener('click', closeModal);
     $('modal').addEventListener('click', function (e) {
