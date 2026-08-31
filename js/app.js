@@ -87,7 +87,8 @@
     });
     var current = document.querySelector('#ladder .rung.current');
     if (current && current.scrollIntoView) {
-      current.scrollIntoView({ block: 'nearest' });
+      // `inline` keeps the current rung in view on the horizontal phone strip.
+      current.scrollIntoView({ block: 'nearest', inline: 'center' });
     }
   }
 

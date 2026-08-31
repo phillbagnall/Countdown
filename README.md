@@ -6,16 +6,32 @@ need the most work.
 
 No build step, no dependencies, no server. Open `index.html` and play.
 
-## Running it
+## Getting it on a phone
 
-**Locally:** double-click `index.html`, or open it in any browser.
+This is the main way it's meant to be played. Two steps:
 
-**On a phone or tablet:** publish the repo with GitHub Pages (Settings →
-Pages → deploy from `main`, root folder) and open the URL it gives you. The
-layout adapts to small screens.
+**1. Publish it.** In this repo on GitHub: **Settings → Pages → Source:
+Deploy from a branch → Branch: `main`, folder `/ (root)` → Save.** After a
+minute GitHub gives you a URL like
+`https://<username>.github.io/Countdown/`.
 
-**With a local server** (only needed if a browser blocks the live API calls
-from a `file://` page):
+**2. Install it on the phone.** Open that URL on the phone, then:
+
+- **iPhone (Safari)** — Share button → *Add to Home Screen*.
+- **Android (Chrome)** — ⋮ menu → *Add to Home screen* / *Install app*.
+
+It then launches full screen from the home icon, with no browser bars, like
+a normal app. Portrait and landscape both work, and the lock-in button is
+pinned to the bottom of the screen so it's always in reach.
+
+**It works with no signal.** A service worker caches the app on first visit,
+so it opens and plays on the Tube or anywhere with no reception — it just
+falls back to the bundled question bank until the connection is back.
+
+### Running it on a computer
+
+Double-click `index.html`, or serve the folder if you want the service
+worker and live API calls to behave exactly as they do when published:
 
 ```sh
 python3 -m http.server 8000
@@ -102,4 +118,14 @@ js/questions.js            live sourcing, pools, fallbacks, weak-topic bias
 js/fallback-questions.js   bundled offline question bank
 js/stats.js                localStorage stats and settings
 js/app.js                  game rules, lifelines, UI wiring
+manifest.webmanifest       app name, icons and colours when installed
+sw.js                      service worker — caches the app for offline play
+icons/                     home screen icons
 ```
+
+### Updating it after a change
+
+The service worker serves the cached copy first and refreshes in the
+background, so a change you push appears the *second* time the app is
+opened. To see it immediately, close and reopen the app twice, or bump
+`CACHE` in `sw.js` to a new version string.

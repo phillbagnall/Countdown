@@ -2,8 +2,15 @@
 <html lang="en-GB">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#061147">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Millionaire">
 <title>Millionaire Training</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="stylesheet" href="css/styles.css">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23061147'/%3E%3Ctext x='16' y='24' font-size='22' font-family='sans-serif' font-weight='bold' text-anchor='middle' fill='%23f5c542'%3E%3F%3C/text%3E%3C/svg%3E">
 </head>
@@ -141,5 +148,14 @@
 <script src="js/stats.js"></script>
 <script src="js/questions.js"></script>
 <script src="js/app.js"></script>
+<script>
+  // Offline support. Needs https (or localhost); silently skipped otherwise,
+  // e.g. when opening the file directly from disk.
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('sw.js').catch(function () {});
+    });
+  }
+</script>
 </body>
 </html>
