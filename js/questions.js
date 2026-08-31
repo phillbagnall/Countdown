@@ -37,6 +37,26 @@ window.Questions = (function () {
     { id: 28, name: 'Vehicles' }
   ];
 
+  /* Most requests ask for no category at all, which returns a broad mix in a
+     single call. These are the categories to drop from such a mix — too
+     niche for a general-knowledge quiz show. */
+  var EXCLUDED_CATEGORIES = [
+    'Entertainment: Video Games',
+    'Entertainment: Board Games',
+    'Entertainment: Comics',
+    'Entertainment: Japanese Anime & Manga',
+    'Entertainment: Cartoon & Animations',
+    'Science: Gadgets'
+  ];
+
+  /* OTDB's own category names, tidied to match the bundled bank so the two
+     sources aggregate into the same stats rows. */
+  var CATEGORY_RENAMES = {
+    'Science: Computers': 'Computers',
+    'Science: Mathematics': 'Mathematics',
+    'Entertainment: Musicals & Theatres': 'Musicals & Theatre'
+  };
+
   var DIFFICULTIES = ['easy', 'medium', 'hard'];
   var POOL_TARGET = 12;          // top up a pool once it drops below this
   var OTDB_MIN_GAP_MS = 5200;    // OTDB allows ~1 request per 5s per IP
@@ -132,17 +152,26 @@ window.Questions = (function () {
   }
 
   /*
-   * Bias towards weak categories most of the time, but keep enough spread
-   * that the range stays broad — the show asks about anything.
+   * Which category to request, or null for "any".
+   *
+   * Null is the common case, and deliberately so: one category-less request
+   * returns a broad mix, whereas a category-specific one returns ten
+   * questions on a single subject — enough to fill a whole game with, say,
+   * animals. Only a minority of refills target a weak category, so the pool
+   * always holds a spread.
    */
   function chooseOtdbCategory() {
-    if (preferredCategories.length && Math.random() < 0.55) {
+    if (preferredCategories.length && Math.random() < 0.4) {
       var matches = OTDB_CATEGORIES.filter(function (c) {
         return preferredCategories.indexOf(c.name) !== -1;
       });
       if (matches.length) return pick(matches);
     }
-    return pick(OTDB_CATEGORIES);
+    return null;
+  }
+
+  function tidyCategory(name) {
+    return CATEGORY_RENAMES[name] || name;
   }
 
   /* ---------------- Open Trivia DB ---------------- */
@@ -190,7 +219,7 @@ window.Questions = (function () {
         lastOtdbRequest = Date.now();
         var url = 'https://opentdb.com/api.php?amount=10&type=multiple&encode=base64' +
                   '&difficulty=' + difficulty +
-                  '&category=' + cat.id +
+                  (cat ? '&category=' + cat.id : '') +
                   (token ? '&token=' + token : '');
         return fetchJson(url);
       })
@@ -203,13 +232,17 @@ window.Questions = (function () {
         if (data.response_code !== 0 || !data.results) return [];
 
         return data.results.map(function (item) {
+          // With no category requested, each row carries its own.
+          var category = cat ? cat.name : tidyCategory(decodeB64(item.category));
           return makeQuestion(
-            cat.name,
+            category,
             decodeB64(item.difficulty),
             decodeB64(item.question),
             decodeB64(item.correct_answer),
             item.incorrect_answers.map(decodeB64)
           );
+        }).filter(function (q) {
+          return EXCLUDED_CATEGORIES.indexOf(q.category) === -1;
         });
       });
   }
@@ -260,7 +293,10 @@ window.Questions = (function () {
       if (isSeen(q.key)) return false;
       return !pools[difficulty].some(function (p) { return p.key === q.key; });
     });
-    pools[difficulty] = pools[difficulty].concat(fresh);
+    // Shuffle the whole pool, not just the new rows: when a batch does come
+    // from a single targeted category, this spreads it out instead of
+    // serving ten questions on one subject back to back.
+    pools[difficulty] = shuffle(pools[difficulty].concat(fresh));
     return fresh.length;
   }
 
@@ -312,7 +348,7 @@ window.Questions = (function () {
     var source = unseen.length ? unseen : candidates;
 
     // Prefer a weak category when we have one available in the bank.
-    if (preferredCategories.length && Math.random() < 0.55) {
+    if (preferredCategories.length && Math.random() < 0.4) {
       var weak = source.filter(function (item) {
         return preferredCategories.indexOf(item.c) !== -1;
       });
@@ -333,9 +369,14 @@ window.Questions = (function () {
     setTimeout(function () { refill('hard'); }, 600);
   }
 
+  /*
+   * The show's opening questions are near-giveaways and it stays gentle for
+   * a good while, so easy runs to Q6 and the hard tier only starts at Q12 —
+   * where the real money begins.
+   */
   function difficultyForLevel(level) {
-    if (level <= 5) return 'easy';
-    if (level <= 10) return 'medium';
+    if (level <= 6) return 'easy';
+    if (level <= 11) return 'medium';
     return 'hard';
   }
 
@@ -344,8 +385,9 @@ window.Questions = (function () {
     var q = pools[difficulty].shift() || bankQuestion(difficulty);
     markSeen(q.key);
     refill(difficulty);
-    // Keep the neighbouring pool warm for the difficulty step-up ahead.
-    if (level === 4 || level === 9) refill(difficultyForLevel(level + 1));
+    // Warm the next tier a couple of questions before it is needed.
+    var upcoming = difficultyForLevel(level + 2);
+    if (upcoming !== difficulty) refill(upcoming);
     return q;
   }
 

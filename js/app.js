@@ -111,7 +111,11 @@
 
   function startGame() {
     settings = Stats.readSettings();
-    Questions.setPreferredCategories(settings.adaptive ? Stats.weakCategories() : []);
+    // Cap the targeting: without a limit, one badly-answered subject can
+    // crowd out everything else.
+    Questions.setPreferredCategories(
+      settings.adaptive ? Stats.weakCategories().slice(0, 4) : []
+    );
 
     state = {
       level: 1,

@@ -47,7 +47,9 @@ python3 -m http.server 8000
   reveal gets longer as the money climbs, as it does on the show.
 - **Walk away** — available at any point, and banks the amount for the last
   question answered correctly.
-- **Difficulty** — questions 1–5 are easy, 6–10 medium, 11–15 hard.
+- **Difficulty** — questions 1–6 are easy, 7–11 medium, 12–15 hard. The show
+  stays gentle for a good while, so the hard tier only starts where the real
+  money does.
 
 ### Lifelines
 
@@ -70,7 +72,9 @@ so a game never stalls:
 1. **[Open Trivia DB](https://opentdb.com)** — the main source. Categorised
    and difficulty-tagged, which is what the ladder needs. A session token
    stops it repeating questions, and requests are rate-limited to one every
-   five seconds as the API requires.
+   five seconds as the API requires. Most requests ask for *no* category, so
+   each one returns a broad mix; niche categories (video games, anime,
+   comics, board games, gadgets) are filtered out as too far from the show.
 2. **[The Trivia API](https://the-trivia-api.com)** — used automatically if
    Open Trivia DB errors or returns nothing.
 3. **Bundled bank** (`js/fallback-questions.js`) — around 140 questions
@@ -95,9 +99,11 @@ overall accuracy, and a per-category breakdown with accuracy, questions
 seen, and average answer time. Categories with at least four questions seen
 and under 70% accuracy are marked as **drilling**.
 
-With *"Target my weakest categories"* switched on (the default), roughly 55%
-of questions are drawn from those weak categories — enough to work on them
-without narrowing the range, since the real show can ask about anything.
+With *"Target my weakest categories"* switched on (the default), about 40% of
+background fetches ask for one of the four weakest categories, and the pool
+is shuffled so those questions are spread through a game rather than arriving
+in a block. That works on weak spots without narrowing the range, since the
+real show can ask about anything.
 
 **Reset all stats** on the stats screen clears the lot.
 
