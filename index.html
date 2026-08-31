@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#061147">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Millionaire">
+<title>Millionaire Training</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="stylesheet" href="css/styles.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23061147'/%3E%3Ctext x='16' y='24' font-size='22' font-family='sans-serif' font-weight='bold' text-anchor='middle' fill='%23f5c542'%3E%3F%3C/text%3E%3C/svg%3E">
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ================= HOME ================= -->
+  <section id="screen-home" class="screen active">
+    <div class="home-inner">
+      <h1 class="logo">Who Wants To Be A<br><span>Millionaire?</span></h1>
+      <p class="tagline">Training mode</p>
+
+      <div class="home-buttons">
+        <button class="btn btn-primary" id="btn-play">Play a full game</button>
+        <button class="btn" id="btn-stats">Stats &amp; weak spots</button>
+      </div>
+
+      <div class="settings-panel">
+        <label class="setting">
+          <input type="checkbox" id="opt-adaptive" checked>
+          <span>Target my weakest categories</span>
+        </label>
+        <label class="setting">
+          <input type="checkbox" id="opt-timer">
+          <span>Question timer (45s)</span>
+        </label>
+        <label class="setting">
+          <input type="checkbox" id="opt-sound" checked>
+          <span>Sound</span>
+        </label>
+      </div>
+
+      <p class="source-note" id="source-note">Questions load live from Open Trivia DB, with an offline bank as backup.</p>
+    </div>
+  </section>
+
+  <!-- ================= GAME ================= -->
+  <section id="screen-game" class="screen">
+    <div class="game-grid">
+
+      <div class="play-area">
+        <header class="game-header">
+          <div class="lifelines">
+            <button class="lifeline" id="ll-5050" title="50:50 — removes two wrong answers">
+              <span class="ll-mark">50:50</span>
+            </button>
+            <button class="lifeline" id="ll-audience" title="Ask the Audience">
+              <span class="ll-mark">&#128101;</span>
+            </button>
+            <button class="lifeline" id="ll-phone" title="Phone a Friend">
+              <span class="ll-mark">&#128222;</span>
+            </button>
+          </div>
+          <div class="header-right">
+            <div class="timer" id="timer" hidden>45</div>
+            <button class="btn btn-small btn-quit" id="btn-walk">Walk away</button>
+          </div>
+        </header>
+
+        <div class="stage">
+        <div class="question-meta">
+          <span class="chip" id="q-category">&nbsp;</span>
+          <span class="chip chip-muted" id="q-difficulty">&nbsp;</span>
+        </div>
+
+        <div class="question-box">
+          <p id="question-text">Loading question&hellip;</p>
+        </div>
+
+        <div class="answers" id="answers">
+          <button class="answer" data-index="0"><span class="letter">A</span><span class="atext"></span></button>
+          <button class="answer" data-index="1"><span class="letter">B</span><span class="atext"></span></button>
+          <button class="answer" data-index="2"><span class="letter">C</span><span class="atext"></span></button>
+          <button class="answer" data-index="3"><span class="letter">D</span><span class="atext"></span></button>
+        </div>
+
+        <div class="confirm-bar" id="confirm-bar" hidden>
+          <span class="confirm-text">Is that your final answer?</span>
+          <button class="btn btn-primary btn-small" id="btn-final">Final answer</button>
+          <button class="btn btn-small" id="btn-change">Change</button>
+        </div>
+        </div>
+      </div>
+
+      <aside class="ladder-wrap">
+        <ol class="ladder" id="ladder"></ol>
+      </aside>
+    </div>
+  </section>
+
+  <!-- ================= STATS ================= -->
+  <section id="screen-stats" class="screen">
+    <div class="panel">
+      <h2>Stats &amp; weak spots</h2>
+      <div class="stat-row" id="stat-summary"></div>
+      <h3>By category</h3>
+      <div id="stat-categories" class="cat-table"></div>
+      <h3>Recent games</h3>
+      <div id="stat-history" class="history"></div>
+      <div class="panel-actions">
+        <button class="btn" id="btn-stats-back">Back</button>
+        <button class="btn btn-danger btn-small" id="btn-stats-reset">Reset all stats</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= RESULT ================= -->
+  <section id="screen-result" class="screen">
+    <div class="panel result-panel">
+      <h2 id="result-title">Game over</h2>
+      <p class="result-money" id="result-money">&pound;0</p>
+      <p id="result-detail"></p>
+      <div id="result-review" class="review"></div>
+      <div class="panel-actions">
+        <button class="btn btn-primary" id="btn-again">Play again</button>
+        <button class="btn" id="btn-result-stats">See stats</button>
+        <button class="btn" id="btn-home">Home</button>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<!-- ================= MODALS ================= -->
+<div class="modal-backdrop" id="modal" hidden>
+  <div class="modal">
+    <h3 id="modal-title"></h3>
+    <div id="modal-body"></div>
+    <button class="btn btn-primary btn-small" id="modal-close">Close</button>
+  </div>
+</div>
+
+<script src="js/fallback-questions.js"></script>
+<script src="js/stats.js"></script>
+<script src="js/questions.js"></script>
+<script src="js/app.js"></script>
+<script>
+  // Offline support. Needs https (or localhost); silently skipped otherwise,
+  // e.g. when opening the file directly from disk.
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('sw.js').catch(function () {});
+    });
+  }
+</script>
+</body>
+</html>
