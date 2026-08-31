@@ -2,9 +2,16 @@
  * Question sourcing.
  *
  * Order of preference:
- *   1. Open Trivia DB (opentdb.com) — large, categorised, difficulty-tagged.
- *   2. The Trivia API (the-trivia-api.com) — used if OTDB errors or is empty.
+ *   1. The Trivia API (the-trivia-api.com) — a British database, asked with
+ *      region=GB so questions unsuitable for a UK audience are held back.
+ *      This is the primary source because Open Trivia DB, being community
+ *      written and largely American, skews heavily towards US general
+ *      knowledge — US presidents, state capitals, American sports.
+ *   2. Open Trivia DB (opentdb.com) — fallback if the first is unreachable.
  *   3. window.FALLBACK_QUESTIONS — bundled bank, so the game never stalls.
+ *
+ * Questions 1-3 always come from the bundled "starter" tier, whatever the
+ * network is doing: no API's easy tier is as gentle as the show's opening.
  *
  * Questions are held in per-difficulty pools that top themselves up in the
  * background. Pulling a question is therefore synchronous and instant: if a
@@ -249,26 +256,50 @@ window.Questions = (function () {
 
   /* ---------------- The Trivia API (secondary) ---------------- */
 
+  /* Their category slugs, mapped onto the names the bundled bank uses so
+     both sources aggregate into the same stats rows. */
+  var TRIVIA_API_CATEGORIES = {
+    film_and_tv: 'Entertainment: Film',
+    music: 'Entertainment: Music',
+    arts_and_literature: 'Entertainment: Books',
+    history: 'History',
+    geography: 'Geography',
+    science: 'Science & Nature',
+    sport_and_leisure: 'Sports',
+    society_and_culture: 'General Knowledge',
+    food_and_drink: 'Food & Drink',
+    general_knowledge: 'General Knowledge'
+  };
+
+  /* The reverse, for asking them about a weak category directly. */
+  var TRIVIA_API_SLUGS = (function () {
+    var out = {};
+    Object.keys(TRIVIA_API_CATEGORIES).forEach(function (slug) {
+      var name = TRIVIA_API_CATEGORIES[slug];
+      if (!out[name]) out[name] = slug;
+    });
+    return out;
+  })();
+
   function prettifyTriviaApiCategory(raw) {
     if (!raw) return 'General Knowledge';
-    var map = {
-      film_and_tv: 'Entertainment: Film',
-      music: 'Entertainment: Music',
-      arts_and_literature: 'Art',
-      history: 'History',
-      geography: 'Geography',
-      science: 'Science & Nature',
-      sport_and_leisure: 'Sports',
-      society_and_culture: 'General Knowledge',
-      food_and_drink: 'General Knowledge',
-      general_knowledge: 'General Knowledge'
-    };
-    if (map[raw]) return map[raw];
+    if (TRIVIA_API_CATEGORIES[raw]) return TRIVIA_API_CATEGORIES[raw];
     return raw.replace(/_/g, ' ').replace(/\b\w/g, function (m) { return m.toUpperCase(); });
   }
 
   function fetchFromTriviaApi(difficulty) {
-    var url = 'https://the-trivia-api.com/v2/questions?limit=15&difficulties=' + difficulty;
+    // region=GB filters out questions unsuitable for a British audience.
+    var url = 'https://the-trivia-api.com/v2/questions?limit=20&region=GB&difficulties=' + difficulty;
+
+    // As with OTDB, target a weak category only some of the time so the
+    // spread stays broad.
+    if (preferredCategories.length && Math.random() < 0.4) {
+      var slugs = preferredCategories
+        .map(function (name) { return TRIVIA_API_SLUGS[name]; })
+        .filter(Boolean);
+      if (slugs.length) url += '&categories=' + pick(slugs);
+    }
+
     return fetchJson(url).then(function (list) {
       if (!Array.isArray(list)) return [];
       return list.map(function (item) {
@@ -305,29 +336,26 @@ window.Questions = (function () {
     if (pools[difficulty].length >= POOL_TARGET) return Promise.resolve(0);
     inFlight[difficulty] = true;
 
-    var attempt = otdbFailures >= 3
-      ? Promise.reject(new Error('OTDB skipped'))
-      : fetchFromOtdb(difficulty);
-
-    return attempt
+    return fetchFromTriviaApi(difficulty)
       .then(function (list) {
         if (!list.length) throw new Error('empty');
-        otdbFailures = 0;
-        status = { source: 'Open Trivia DB', live: true };
+        status = { source: 'The Trivia API (UK)', live: true };
         return addToPool(difficulty, list);
       })
       .catch(function () {
+        // Fall back to OTDB, unless it has already failed repeatedly.
+        if (otdbFailures >= 3) throw new Error('OTDB skipped');
+        return fetchFromOtdb(difficulty).then(function (list) {
+          if (!list.length) throw new Error('empty');
+          otdbFailures = 0;
+          status = { source: 'Open Trivia DB', live: true };
+          return addToPool(difficulty, list);
+        });
+      })
+      .catch(function () {
         otdbFailures++;
-        return fetchFromTriviaApi(difficulty)
-          .then(function (list) {
-            if (!list.length) throw new Error('empty');
-            status = { source: 'The Trivia API', live: true };
-            return addToPool(difficulty, list);
-          })
-          .catch(function () {
-            if (!status.live) status = { source: 'offline bank', live: false };
-            return 0;
-          });
+        if (!status.live) status = { source: 'offline bank', live: false };
+        return 0;
       })
       .then(function (n) {
         inFlight[difficulty] = false;
@@ -370,24 +398,42 @@ window.Questions = (function () {
   }
 
   /*
-   * The show's opening questions are near-giveaways and it stays gentle for
-   * a good while, so easy runs to Q6 and the hard tier only starts at Q12 —
-   * where the real money begins.
+   * The show's first three questions are giveaways, and no API's "easy"
+   * tier goes that low — so those come from the bundled starter bank. Easy
+   * then runs to Q6, and the hard tier only starts at Q12, where the real
+   * money begins.
    */
   function difficultyForLevel(level) {
+    if (level <= 3) return 'starter';
     if (level <= 6) return 'easy';
     if (level <= 11) return 'medium';
     return 'hard';
   }
 
+  /* What to show the player: "starter" is an implementation detail. */
+  function difficultyLabel(level) {
+    var d = difficultyForLevel(level);
+    return d === 'starter' ? 'easy' : d;
+  }
+
+  function isFetchable(difficulty) {
+    return DIFFICULTIES.indexOf(difficulty) !== -1;
+  }
+
   function next(level) {
     var difficulty = difficultyForLevel(level);
-    var q = pools[difficulty].shift() || bankQuestion(difficulty);
+
+    // The starter tier is bundled only — there is nothing to fetch.
+    var q = isFetchable(difficulty)
+      ? (pools[difficulty].shift() || bankQuestion(difficulty))
+      : bankQuestion(difficulty);
+
     markSeen(q.key);
-    refill(difficulty);
+    if (isFetchable(difficulty)) refill(difficulty);
+
     // Warm the next tier a couple of questions before it is needed.
     var upcoming = difficultyForLevel(level + 2);
-    if (upcoming !== difficulty) refill(upcoming);
+    if (upcoming !== difficulty && isFetchable(upcoming)) refill(upcoming);
     return q;
   }
 
@@ -399,6 +445,7 @@ window.Questions = (function () {
     prefetch: prefetch,
     next: next,
     difficultyForLevel: difficultyForLevel,
+    difficultyLabel: difficultyLabel,
     setPreferredCategories: setPreferredCategories,
     getStatus: getStatus,
     DIFFICULTIES: DIFFICULTIES

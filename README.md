@@ -54,9 +54,14 @@ python3 -m http.server 8000
   comparable with a straight game; the result screen adds how many were
   answered correctly overall, and missed rungs are struck through on the
   ladder.
-- **Difficulty** — questions 1–6 are easy, 7–11 medium, 12–15 hard. The show
-  stays gentle for a good while, so the hard tier only starts where the real
-  money does.
+- **Difficulty** — questions 1–3 are giveaways, 4–6 easy, 7–11 medium, 12–15
+  hard. The show stays gentle for a good while, so the hard tier only starts
+  where the real money does.
+- **The first three questions** never come from an API. No trivia API's
+  "easy" tier is as gentle as the show's opening, so Q1–3 are always served
+  from a hand-written *starter* bank in `js/fallback-questions.js` —
+  British-flavoured and answerable without thinking. Add more by appending
+  entries with `d: 'starter'`.
 
 ### Lifelines
 
@@ -77,17 +82,21 @@ lifeline pop-up.
 Questions are pulled live so the range stays broad, with layered fallbacks
 so a game never stalls:
 
-1. **[Open Trivia DB](https://opentdb.com)** — the main source. Categorised
-   and difficulty-tagged, which is what the ladder needs. A session token
-   stops it repeating questions, and requests are rate-limited to one every
-   five seconds as the API requires. Most requests ask for *no* category, so
-   each one returns a broad mix; niche categories (video games, anime,
-   comics, board games, gadgets) are filtered out as too far from the show.
-2. **[The Trivia API](https://the-trivia-api.com)** — used automatically if
-   Open Trivia DB errors or returns nothing.
-3. **Bundled bank** (`js/fallback-questions.js`) — around 140 questions
+1. **[The Trivia API](https://the-trivia-api.com)** — the main source. It is
+   a British database and is asked with `region=GB`, which holds back
+   questions unsuitable for a UK audience. It leads because Open Trivia DB,
+   being community-written and largely American, skews hard towards US
+   general knowledge — presidents, state capitals, American sports.
+2. **[Open Trivia DB](https://opentdb.com)** — the fallback if the first is
+   unreachable. A session token stops it repeating questions, and requests
+   are rate-limited to one every five seconds as the API requires. Most
+   requests ask for *no* category, so each returns a broad mix; niche
+   categories (video games, anime, comics, board games, gadgets) are
+   filtered out as too far from the show.
+3. **Bundled bank** (`js/fallback-questions.js`) — around 185 questions
    shipped with the app, so it works offline, on a flaky connection, or
-   while the live pools are still filling.
+   while the live pools are still filling. Its *starter* tier also serves
+   Q1–3 of every game regardless of the network.
 
 Questions are held in per-difficulty pools that top themselves up in the
 background, so pulling the next question is instant. Recently seen questions
