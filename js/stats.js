@@ -72,6 +72,11 @@ window.Stats = (function () {
       winnings: result.winnings,
       level: result.level,
       outcome: result.outcome,
+      // Practice runs carry on past a mistake; `level` still records where
+      // the run officially ended, so best-level stays comparable.
+      practice: !!result.practice,
+      answeredCorrect: result.answeredCorrect,
+      answeredTotal: result.answeredTotal,
       date: result.date || Date.now()
     });
     data.history = data.history.slice(0, MAX_HISTORY);
@@ -120,7 +125,7 @@ window.Stats = (function () {
   /* ---------------- settings ---------------- */
 
   function readSettings() {
-    var defaults = { adaptive: true, timer: false, sound: true };
+    var defaults = { adaptive: true, timer: false, sound: true, practice: false };
     try {
       var raw = localStorage.getItem(SETTINGS_KEY);
       if (!raw) return defaults;

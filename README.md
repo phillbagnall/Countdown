@@ -47,7 +47,16 @@ python3 -m http.server 8000
   reveal gets longer as the money climbs, as it does on the show.
 - **Walk away** — available at any point, and banks the amount for the last
   question answered correctly.
-- **Difficulty** — questions 1–5 are easy, 6–10 medium, 11–15 hard.
+- **Keep playing after a wrong answer** (optional, off by default) — the
+  questions carry on to Q15 so a session is always a full fifteen, but the
+  run is still scored where it ended. The money, the recorded level and the
+  best-level stat all come from the first wrong answer, so results stay
+  comparable with a straight game; the result screen adds how many were
+  answered correctly overall, and missed rungs are struck through on the
+  ladder.
+- **Difficulty** — questions 1–6 are easy, 7–11 medium, 12–15 hard. The show
+  stays gentle for a good while, so the hard tier only starts where the real
+  money does.
 
 ### Lifelines
 
@@ -56,6 +65,7 @@ python3 -m http.server 8000
 | **50:50** | Removes two wrong answers. |
 | **Ask the Audience** | Simulated vote. The crowd is reliable on easy questions and much less so on hard ones, and only votes on answers still on the board. |
 | **Phone a Friend** | 30-second timer. The friend is right about 90% of the time on easy questions, 70% on medium, 45% on hard — and the confidence wording tells you roughly how much to trust it. |
+| **Ask the Host** | The host answers off the cuff: right about 85% of the time on easy, 60% on medium, 40% on hard. He says how sure he is, and he is sometimes confident and wrong — reading that is the point. |
 
 ### Keyboard
 
@@ -70,7 +80,9 @@ so a game never stalls:
 1. **[Open Trivia DB](https://opentdb.com)** — the main source. Categorised
    and difficulty-tagged, which is what the ladder needs. A session token
    stops it repeating questions, and requests are rate-limited to one every
-   five seconds as the API requires.
+   five seconds as the API requires. Most requests ask for *no* category, so
+   each one returns a broad mix; niche categories (video games, anime,
+   comics, board games, gadgets) are filtered out as too far from the show.
 2. **[The Trivia API](https://the-trivia-api.com)** — used automatically if
    Open Trivia DB errors or returns nothing.
 3. **Bundled bank** (`js/fallback-questions.js`) — around 140 questions
@@ -95,9 +107,11 @@ overall accuracy, and a per-category breakdown with accuracy, questions
 seen, and average answer time. Categories with at least four questions seen
 and under 70% accuracy are marked as **drilling**.
 
-With *"Target my weakest categories"* switched on (the default), roughly 55%
-of questions are drawn from those weak categories — enough to work on them
-without narrowing the range, since the real show can ask about anything.
+With *"Target my weakest categories"* switched on (the default), about 40% of
+background fetches ask for one of the four weakest categories, and the pool
+is shuffled so those questions are spread through a game rather than arriving
+in a block. That works on weak spots without narrowing the range, since the
+real show can ask about anything.
 
 **Reset all stats** on the stats screen clears the lot.
 
@@ -106,6 +120,7 @@ without narrowing the range, since the real show can ask about anything.
 | Setting | Default | Effect |
 |---|---|---|
 | Target my weakest categories | on | Biases question selection towards weak subjects |
+| Keep playing after a wrong answer | off | Carries on to Q15 for practice; the result is still scored at the first mistake |
 | Question timer (45s) | off | Adds a countdown; running out counts as a wrong answer |
 | Sound | on | Short synthesised cues for select, lock-in, correct and wrong |
 
