@@ -1,8 +1,8 @@
 # Millionaire Training
 
 A practice app for *Who Wants To Be A Millionaire?* — the full 15-question
-ladder, the three classic lifelines, and stats that work out which subjects
-need the most work.
+ladder, four lifelines, and stats that work out which subjects need the most
+work.
 
 No build step, no dependencies, no server. Open `index.html` and play.
 
@@ -13,7 +13,12 @@ This is the main way it's meant to be played. Two steps:
 **1. Publish it.** In this repo on GitHub: **Settings → Pages → Source:
 Deploy from a branch → Branch: `main`, folder `/ (root)` → Save.** After a
 minute GitHub gives you a URL like
-`https://<username>.github.io/Countdown/`.
+`https://<username>.github.io/millionaire-training/` — the last part is the
+repository name, so it changes if the repo is renamed.
+
+Nothing in the app hardcodes that path: the manifest, the service worker and
+every asset reference are relative, so renaming the repository moves the app
+without a code change. Only this README mentions the name.
 
 **2. Install it on the phone.** Open that URL on the phone, then:
 
@@ -27,6 +32,18 @@ pinned to the bottom of the screen so it's always in reach.
 **It works with no signal.** A service worker caches the app on first visit,
 so it opens and plays on the Tube or anywhere with no reception — it just
 falls back to the bundled question bank until the connection is back.
+
+### If the repository is renamed
+
+The published URL contains the repository name, so renaming the repo moves
+the site. The app needs no changes, but on any phone that already has it:
+
+- **The old link stops working.** Delete the old home screen icon and add
+  the app again from the new URL, or the icon may keep opening the old copy
+  from its offline cache rather than showing an error.
+- **Saved stats survive.** Browser storage is tied to the host
+  (`phillbagnall.github.io`), not the path, so the accuracy history and weak
+  categories carry over to the new address on the same phone and browser.
 
 ### Running it on a computer
 
