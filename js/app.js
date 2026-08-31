@@ -1,7 +1,7 @@
 /*
  * Game logic and UI wiring.
  *
- * Classic 15-step ladder, two safety nets, three lifelines, walk away.
+ * 15-step ladder, two safety nets, four lifelines, walk away.
  */
 (function () {
   'use strict';
@@ -151,7 +151,7 @@
     state.askedAt = Date.now();
 
     $('q-category').textContent = q.category;
-    $('q-difficulty').textContent = Questions.difficultyForLevel(state.level) +
+    $('q-difficulty').textContent = Questions.difficultyLabel(state.level) +
       ' · ' + money(LADDER[state.level - 1]);
     $('question-text').innerHTML = '';
     $('question-text').textContent = q.question;
@@ -380,7 +380,7 @@
     $('ll-audience').disabled = true;
 
     var q = state.question;
-    var difficulty = Questions.difficultyForLevel(state.level);
+    var difficulty = Questions.difficultyLabel(state.level);
     var correctShare = difficulty === 'easy' ? 0.62 + Math.random() * 0.28
                      : difficulty === 'medium' ? 0.38 + Math.random() * 0.30
                      : 0.22 + Math.random() * 0.28;
@@ -435,7 +435,7 @@
     $('ll-phone').disabled = true;
 
     var q = state.question;
-    var difficulty = Questions.difficultyForLevel(state.level);
+    var difficulty = Questions.difficultyLabel(state.level);
     var accuracy = difficulty === 'easy' ? 0.9 : difficulty === 'medium' ? 0.7 : 0.45;
     var confident = Math.random() < accuracy;
 
@@ -495,7 +495,7 @@
     $('ll-host').disabled = true;
 
     var q = state.question;
-    var difficulty = Questions.difficultyForLevel(state.level);
+    var difficulty = Questions.difficultyLabel(state.level);
     var accuracy = difficulty === 'easy' ? 0.85 : difficulty === 'medium' ? 0.6 : 0.4;
     var right = Math.random() < accuracy;
 
