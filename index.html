@@ -48,7 +48,8 @@
         </label>
       </div>
 
-      <p class="source-note" id="source-note">Questions load live from Open Trivia DB, with an offline bank as backup.</p>
+      <p class="source-note" id="source-note">Loading questions&hellip;</p>
+      <p class="build-stamp" id="build-stamp"></p>
     </div>
   </section>
 
@@ -160,8 +161,22 @@
   // Offline support. Needs https (or localhost); silently skipped otherwise,
   // e.g. when opening the file directly from disk.
   if ('serviceWorker' in navigator) {
+    // When a new version takes over, reload once so it is used immediately
+    // rather than on some later launch.
+    // On a first-ever visit there is no controller yet, and the worker
+    // claiming the page is not an update — reloading then would loop.
+    var hadController = !!navigator.serviceWorker.controller;
+    var reloading = false;
+    navigator.serviceWorker.addEventListener('controllerchange', function () {
+      if (!hadController || reloading) return;
+      reloading = true;
+      window.location.reload();
+    });
+
     window.addEventListener('load', function () {
-      navigator.serviceWorker.register('sw.js').catch(function () {});
+      navigator.serviceWorker.register('sw.js').then(function (reg) {
+        reg.update();
+      }).catch(function () {});
     });
   }
 </script>
