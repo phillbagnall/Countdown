@@ -6,6 +6,10 @@ work.
 
 No build step, no dependencies, no server. Open `index.html` and play.
 
+This repo also hosts a second, unrelated static app — see
+[`pokedex/`](pokedex/) for a Pokémon flashcard trainer and searchable
+database. It's a separate PWA at its own path; nothing below applies to it.
+
 ## Getting it on a phone
 
 This is the main way it's meant to be played. Two steps:

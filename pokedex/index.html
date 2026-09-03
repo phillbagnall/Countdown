@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#c0392b">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Pokedex Trainer">
+<title>Pokedex Trainer</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="stylesheet" href="css/styles.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23c0392b'/%3E%3Ccircle cx='16' cy='16' r='11' fill='white'/%3E%3Crect y='14' width='32' height='4' fill='%23222'/%3E%3Ccircle cx='16' cy='16' r='5' fill='white' stroke='%23222' stroke-width='2.5'/%3E%3C/svg%3E">
+</head>
+<body>
+
+<div id="app">
+
+  <header class="topbar">
+    <h1>Pokedex Trainer</h1>
+  </header>
+
+  <div id="app-loading" class="loading">Loading the Pokedex&hellip;</div>
+
+  <main id="app-main" hidden>
+
+    <!-- ================= BROWSE ================= -->
+    <section id="screen-browse" class="screen active">
+      <div class="browse-controls">
+        <input id="browse-search" type="search" placeholder="Search by name&hellip;" autocomplete="off">
+        <div class="filter-row">
+          <select id="browse-gen" aria-label="Filter by generation">
+            <option value="">All generations</option>
+          </select>
+          <select id="browse-type" aria-label="Filter by type">
+            <option value="">All types</option>
+          </select>
+        </div>
+        <div class="filter-row">
+          <select id="browse-sort" aria-label="Sort by">
+            <option value="dex">Sort: Dex number</option>
+            <option value="name">Sort: Name</option>
+            <option value="type">Sort: Type</option>
+            <option value="family">Sort: Evolutionary family</option>
+            <option value="weakest">Sort: Weakest first</option>
+          </select>
+        </div>
+        <label class="due-toggle">
+          <input type="checkbox" id="browse-due-only">
+          <span>Due for review only</span>
+        </label>
+      </div>
+      <p id="browse-count" class="result-count"></p>
+      <div id="browse-grid" class="poke-grid"></div>
+    </section>
+
+    <!-- ================= STUDY ================= -->
+    <section id="screen-study" class="screen">
+      <div id="study-picker" class="study-picker">
+        <h2>Study</h2>
+        <p id="study-due-count" class="muted"></p>
+        <button id="study-mode-picture" class="btn btn-primary">Picture &rarr; Name</button>
+        <button id="study-mode-details" class="btn btn-primary">Name/Type &rarr; Details</button>
+      </div>
+
+      <div id="study-session" class="study-session" hidden>
+        <div class="session-bar">
+          <button id="study-quit" class="link-btn">&larr; Modes</button>
+          <span id="study-progress-label"></span>
+        </div>
+        <div id="study-card" class="study-card"></div>
+      </div>
+
+      <div id="study-round-summary" class="round-summary" hidden>
+        <h2>Round complete</h2>
+        <p id="study-round-stats"></p>
+        <button id="study-again" class="btn btn-primary">Study more</button>
+        <button id="study-back" class="link-btn">&larr; Modes</button>
+      </div>
+    </section>
+
+    <!-- ================= PROGRESS ================= -->
+    <section id="screen-progress" class="screen">
+      <h2>Progress</h2>
+      <div id="progress-summary" class="progress-summary"></div>
+      <div id="progress-boxes" class="progress-boxes"></div>
+      <h3>Weakest types</h3>
+      <div id="progress-by-type" class="breakdown"></div>
+      <h3>Weakest generations</h3>
+      <div id="progress-by-gen" class="breakdown"></div>
+      <button id="progress-reset" class="link-btn danger">Reset all progress</button>
+    </section>
+
+  </main>
+
+  <nav id="tabbar" class="tabbar" hidden>
+    <button class="tab-btn active" data-target="browse">Browse</button>
+    <button class="tab-btn" data-target="study">Study</button>
+    <button class="tab-btn" data-target="progress">Progress</button>
+  </nav>
+
+  <div id="detail-overlay" class="overlay" hidden>
+    <div class="detail-card">
+      <button id="detail-close" class="close-btn" aria-label="Close">&times;</button>
+      <div id="detail-body"></div>
+    </div>
+  </div>
+
+</div>
+
+<script src="js/dataset.js"></script>
+<script src="js/progress.js"></script>
+<script src="js/browse.js"></script>
+<script src="js/flashcards.js"></script>
+<script src="js/app.js"></script>
+<script>
+  // Offline support. Needs https (or localhost); silently skipped otherwise,
+  // e.g. when opening the file directly from disk.
+  if ('serviceWorker' in navigator) {
+    // When a new version takes over, reload once so it is used immediately
+    // rather than on some later launch.
+    // On a first-ever visit there is no controller yet, and the worker
+    // claiming the page is not an update — reloading then would loop.
+    var hadController = !!navigator.serviceWorker.controller;
+    var reloading = false;
+    navigator.serviceWorker.addEventListener('controllerchange', function () {
+      if (!hadController || reloading) return;
+      reloading = true;
+      window.location.reload();
+    });
+
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('sw.js').then(function (reg) {
+        reg.update();
+      }).catch(function () {});
+    });
+  }
+</script>
+</body>
+</html>
